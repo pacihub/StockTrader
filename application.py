@@ -3,7 +3,7 @@ import os
 from cs50 import SQL
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
-from tempfile import mkdtemp
+
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
@@ -45,8 +45,6 @@ if not os.environ.get("API_KEY"):
 @login_required
 def index():
     """Show portfolio of stocks"""
-#i did this the complicated way before i realized that i don't have to join the 2 tables.
-#    portfolio = db.execute("SELECT stock,SUM(quantity),cash FROM transactions JOIN users ON users.id = transactions.id WHERE transactions.id = :id GROUP BY stock HAVING SUM(quantity) > 0", id = session["user_id"])
 
     portfolio = db.execute("SELECT stock, SUM(quantity) FROM transactions WHERE id = :id GROUP BY stock HAVING SUM(quantity) > 0", id = session["user_id"])
 
@@ -63,10 +61,7 @@ def index():
         total_stocks_value += stock_value
 
     total_acct_value = total_stocks_value + cash_amount
-#    ticker = lookup(portfolio["stock"])
-#    for i in range(len(portfolio)):
-#        stock_price = lookup(portfolio[i]["stock"])
-#        prices.append(stock_price["price"])
+
     logged_username = db.execute("SELECT username FROM users where id = :id",id = session["user_id"] )
     return render_template("index.html", portfolio = portfolio, cash_amount = cash_amount, total_acct_value = round(total_acct_value,2), logged_username = logged_username[0]["username"])
 
@@ -168,7 +163,7 @@ def quote():
 
         stock = lookup(request.form.get("symbol"))
         return render_template("quoted.html", stock = stock)
-        #passing the value of 'price' from python to html
+        #passing the value of 'price' from Controller to View. (dict returned by Lookup() f-n)
 
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
@@ -207,13 +202,8 @@ def buy():
 
             if buying_power < trx_cost:
                 return apology("not enough cashhh", 401)
+            
             else:
-    #""" Getting the price of the stock. lookup(request.form.get("symbol")) returns a dict
-    #with keys as follows {name: (value)
-    #                     symbol: (value)
-    #                     price: (value) }
-    #So stock["price"] accesses the value of price. """
-
                         #update CASH column in the users table
                 db.execute("UPDATE users SET cash = cash - :trx_cost WHERE id = :id", trx_cost = trx_cost, id = session["user_id"])
 
@@ -223,8 +213,6 @@ def buy():
                 id = session["user_id"], stock = stock["symbol"], quantity = num_sharestobuy,
                 price = stock["price"], date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 return redirect("/")
-
-
 
 @app.route("/sell", methods=["GET", "POST"])
 @login_required
@@ -242,8 +230,6 @@ def sell():
 
         elif int(request.form.get("shares")) <= 0:
             return apology("You can't sell negative shares", 403)
-
-
 
 #getting the account stock value of the current user
         users_sharesdict = db.execute("SELECT quantity FROM transactions WHERE id = :id",
@@ -305,8 +291,6 @@ def add():
 
                return (f"you just added  ${how_much} to your account.")
                return render_template("index.html")
-
-
 
 def errorhandler(e):
     """Handle error"""
